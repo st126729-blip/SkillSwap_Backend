@@ -1,0 +1,20 @@
+{% extends "ps4/base.html" %}
+{% block title %}PS4 index{% endblock %}
+{% block content %}
+<h1>SkillSwap &amp; Project Co-Op: user research (PS4)</h1>
+<p>Public summary of our user research. Personas are fictional composites built from anonymised interviews. No private interview notes are published here.</p>
+<h2>Personas</h2>
+{% for p in personas %}
+<div class="card">
+  <h3><a href="{% url 'ps4:persona' p.slug %}">{{ p.name }}: {{ p.label }}</a></h3>
+  <p>{{ p.short_goal }}</p>
+  <a href="{% url 'ps4:scenario' p.slug %}">Usage scenario</a>
+</div>
+{% endfor %}
+<h2>More</h2>
+<ul>
+  <li><a href="{% url 'ps4:findings' %}">High-level findings</a></li>
+  <li><a href="{% url 'ps4:requirements' %}">Roles, permissions and user stories</a></li>
+  <li><a href="{% url 'ps4:mvp' %}">Revised MVP</a></li>
+</ul>
+{% endblock %}

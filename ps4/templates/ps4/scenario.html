@@ -1,0 +1,11 @@
+{% extends "ps4/base.html" %}
+{% block title %}Scenario: {{ p.name }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'ps4:index' %}">&larr; Back to PS4 index</a> |
+   <a href="{% url 'ps4:persona' p.slug %}">Back to {{ p.name }}</a></p>
+<h1>{{ p.scenario.title }}</h1>
+<div class="card"><h2>Trigger</h2><p>{{ p.scenario.trigger }}</p></div>
+<div class="card"><h2>Steps</h2><ol>{% for s in p.scenario.steps %}<li>{{ s }}</li>{% endfor %}</ol></div>
+<div class="card"><h2>Expected outcome</h2><p>{{ p.scenario.outcome }}</p></div>
+<div class="card"><h2>Exception</h2><p>{{ p.scenario.exception }}</p></div>
+{% endblock %}

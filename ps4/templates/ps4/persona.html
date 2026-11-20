@@ -1,0 +1,17 @@
+{% extends "ps4/base.html" %}
+{% block title %}{{ p.name }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'ps4:index' %}">&larr; Back to PS4 index</a></p>
+<h1>{{ p.name }}</h1>
+<p><strong>{{ p.label }}</strong> (fictional composite persona)</p>
+<div class="card"><h2>Background</h2><p>{{ p.background }}</p></div>
+<div class="card"><h2>Goals</h2>
+  <p><strong>Short term:</strong> {{ p.short_goal }}</p>
+  <p><strong>Long term:</strong> {{ p.long_goal }}</p></div>
+<div class="card"><h2>Typical tasks</h2><ul>{% for t in p.tasks %}<li>{{ t }}</li>{% endfor %}</ul></div>
+<div class="card"><h2>Frustrations</h2><ul>{% for f in p.frustrations %}<li>{{ f }}</li>{% endfor %}</ul></div>
+<div class="card"><h2>Technology and access</h2><p>{{ p.tech }}</p></div>
+<div class="card"><h2>Expectations of the application</h2><ul>{% for e in p.expectations %}<li>{{ e }}</li>{% endfor %}</ul></div>
+<p class="note">Supporting evidence: {{ p.evidence }}</p>
+<p><a href="{% url 'ps4:scenario' p.slug %}">Read {{ p.name }}'s usage scenario &rarr;</a></p>
+{% endblock %}

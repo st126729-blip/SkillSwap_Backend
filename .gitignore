@@ -1,0 +1,17 @@
+# Backend
+.env
+*.pyc
+__pycache__/
+venv/
+.venv/
+media/
+staticfiles/
+db.sqlite3
+__pycache__/
+*.pyc
+.coverage
+test_smtp.py
+.idea/
+media/
+staticfiles/
+.env

@@ -1,0 +1,10 @@
+{% extends "ps4/base.html" %}
+{% block title %}MVP{% endblock %}
+{% block content %}
+<p><a href="{% url 'ps4:index' %}">&larr; Back to PS4 index</a></p>
+<h1>Revised MVP</h1>
+<h2>In scope this semester (priority order)</h2>
+<ol>{% for item in mvp.in %}<li>{{ item }}</li>{% endfor %}</ol>
+<h2>Out of scope</h2>
+<ul>{% for item in mvp.out %}<li>{{ item }}</li>{% endfor %}</ul>
+{% endblock %}

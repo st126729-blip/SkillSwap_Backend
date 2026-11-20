@@ -1,0 +1,19 @@
+<h2>Verify your email</h2>
+<p>A code was sent to {{ email }}</p>
+
+{% if messages %}
+  {% for message in messages %}
+    <p style="color: red;">{{ message }}</p>
+  {% endfor %}
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Verify</button>
+</form>
+
+<form method="post" action="{% url 'resend_code' %}">
+    {% csrf_token %}
+    <button type="submit">Resend code</button>
+</form>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PS4{% endblock %} - SkillSwap &amp; Project Co-Op</title>
+  <style>
+    body { font-family: system-ui, sans-serif; line-height: 1.5; margin: 0; color: #1f2933; background: #f7f8fa; }
+    header, main { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+    nav { background: #1f3a5f; }
+    nav .inner { max-width: 860px; margin: 0 auto; padding: 8px 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+    nav a { color: #fff; text-decoration: none; font-size: 0.95rem; }
+    nav a:hover { text-decoration: underline; }
+    main { padding-top: 16px; padding-bottom: 40px; }
+    .card { background: #fff; border: 1px solid #dde3ea; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+    table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
+    th, td { border: 1px solid #dde3ea; padding: 6px 8px; text-align: left; vertical-align: top; }
+    .note { font-size: 0.9rem; color: #52606d; }
+  </style>
+</head>
+<body>
+  <nav><div class="inner">
+    <a href="{% url 'ps4:index' %}">PS4 index</a>
+    <a href="{% url 'ps4:persona' 'khoa' %}">Khoa</a>
+    <a href="{% url 'ps4:persona' 'nam' %}">Nam</a>
+    <a href="{% url 'ps4:persona' 'ha' %}">Ha</a>
+    <a href="{% url 'ps4:findings' %}">Findings</a>
+    <a href="{% url 'ps4:requirements' %}">Requirements</a>
+    <a href="{% url 'ps4:mvp' %}">MVP</a>
+  </div></nav>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

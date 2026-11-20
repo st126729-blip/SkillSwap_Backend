@@ -1,0 +1,11 @@
+{% extends "ps4/base.html" %}
+{% block title %}Findings{% endblock %}
+{% block content %}
+<p><a href="{% url 'ps4:index' %}">&larr; Back to PS4 index</a></p>
+<h1>High-level findings</h1>
+<p class="note">Summarised from anonymised interviews. Small sample, mainly IT and digital freelance community.</p>
+<table>
+  <tr><th>#</th><th>Finding</th><th>Design implication</th></tr>
+  {% for code, text, impl in findings %}<tr><td>{{ code }}</td><td>{{ text }}</td><td>{{ impl }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

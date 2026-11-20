@@ -1,0 +1,17 @@
+{% extends "ps4/base.html" %}
+{% block title %}Requirements{% endblock %}
+{% block content %}
+<p><a href="{% url 'ps4:index' %}">&larr; Back to PS4 index</a></p>
+<h1>Roles, permissions and user stories</h1>
+<p class="note">Summary only. All access rules are enforced on the server, not only by hiding buttons in the interface.</p>
+<h2>Roles</h2>
+<table>
+  <tr><th>Role</th><th>Main permissions</th></tr>
+  {% for role, text in roles %}<tr><td>{{ role }}</td><td>{{ text }}</td></tr>{% endfor %}
+</table>
+<h2>Prioritised user stories</h2>
+<table>
+  <tr><th>Priority</th><th>Story</th></tr>
+  {% for prio, text in stories %}<tr><td>{{ prio }}</td><td>{{ text }}</td></tr>{% endfor %}
+</table>
+{% endblock %}
