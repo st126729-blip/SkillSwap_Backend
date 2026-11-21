@@ -1,25 +1,36 @@
-from rest_framework import generics, permissions, status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
-from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth.models import User
+import logging
+from decimal import Decimal
+
+from django.conf import settings
 from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
-from django.conf import settings
 from django.shortcuts import get_object_or_404
+from rest_framework import generics, permissions, status
+from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
-from decimal import Decimal
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import (
-    UserSerializer, RegisterSerializer, VerifyCodeSerializer, LoginSerializer,
-    OwnProfileSerializer, PublicProfileSerializer,
-    ForgotPasswordSerializer, VerifyResetCodeSerializer, ResetPasswordSerializer,
-)
-from .models import EmailVerification, Profile, PasswordResetCode
 from wallet.models import Wallet, add_credit
+
+from .models import EmailVerification, PasswordResetCode, Profile
+from .serializers import (
+    ForgotPasswordSerializer,
+    LoginSerializer,
+    OwnProfileSerializer,
+    PublicProfileSerializer,
+    RegisterSerializer,
+    ResetPasswordSerializer,
+    UserSerializer,
+    VerifyCodeSerializer,
+    VerifyResetCodeSerializer,
+)
+
+logger = logging.getLogger(__name__)
 
 SIGNUP_BONUS_AMOUNT = Decimal('20')  # answers "where do credits initially come from?"
 
@@ -27,6 +38,25 @@ SIGNUP_BONUS_AMOUNT = Decimal('20')  # answers "where do credits initially come 
 def issue_tokens(user):
     refresh = RefreshToken.for_user(user)
     return {'access': str(refresh.access_token), 'refresh': str(refresh)}
+
+
+def send_code_email(subject, message, recipient):
+    """Send a plain-text email. Returns True on success, False on failure.
+
+    The full traceback is written to the server log so the real cause
+    (SMTP/API error, blocked port, bad key, ...) is visible on Render.
+    """
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[recipient],
+        )
+        return True
+    except Exception:
+        logger.exception("Failed to send email '%s' to %s", subject, recipient)
+        return False
 
 
 class RegisterView(APIView):
@@ -48,20 +78,18 @@ class RegisterView(APIView):
         code = EmailVerification.generate_code()
         EmailVerification.objects.create(user=user, code=code)
 
-        try:
-            send_mail(
-                subject='Your SkillTrade verification code',
-                message=f'Your verification code is: {code}\nIt expires in 10 minutes.',
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-            )
-        except Exception:
-            user.delete()  # xóa luôn EmailVerification nhờ cascade (nếu FK on_delete=CASCADE)
+        sent = send_code_email(
+            subject='Your SkillTrade verification code',
+            message=f'Your verification code is: {code}\nIt expires in 10 minutes.',
+            recipient=user.email,
+        )
+        if not sent:
+            # Roll back the pending user (EmailVerification is removed by cascade)
+            user.delete()
             return Response(
                 {'detail': 'Could not send verification email. Please try again.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-
 
         return Response(
             {'user_id': user.id, 'email': user.email, 'detail': 'Verification code sent.'},
@@ -119,21 +147,19 @@ class ResendCodeView(APIView):
         user_id = request.data.get('user_id')
         try:
             user = User.objects.get(id=user_id, is_active=False)
-        except User.DoesNotExist:
+        except (User.DoesNotExist, ValueError, TypeError):
             return Response({'detail': 'No pending registration found.'}, status=status.HTTP_400_BAD_REQUEST)
 
         EmailVerification.objects.filter(user=user).delete()
         code = EmailVerification.generate_code()
         EmailVerification.objects.create(user=user, code=code)
 
-        try:
-            send_mail(
-                subject='Your SkillTrade verification code (resent)',
-                message=f'Your new verification code is: {code}\nIt expires in 10 minutes.',
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-            )
-        except Exception:
+        sent = send_code_email(
+            subject='Your SkillTrade verification code (resent)',
+            message=f'Your new verification code is: {code}\nIt expires in 10 minutes.',
+            recipient=user.email,
+        )
+        if not sent:
             return Response(
                 {'detail': 'Could not send email. Please try again.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -175,10 +201,10 @@ class LoginView(APIView):
         return Response({'user': UserSerializer(user).data, **tokens})
 
 
-# ---- Quên mật khẩu ----
+# ---- Forgot password ----
 
 def _check_reset_code(email, code):
-    """Trả về (user, reset, error_response). Có lỗi thì error_response khác None."""
+    """Return (user, reset, error_response). error_response is not None on failure."""
     bad = Response({'detail': 'Invalid or expired code.'}, status=status.HTTP_400_BAD_REQUEST)
     user = User.objects.filter(email__iexact=email, is_active=True).first()
     reset = getattr(user, 'password_reset', None) if user else None
@@ -212,14 +238,15 @@ class ForgotPasswordView(APIView):
             PasswordResetCode.objects.filter(user=user).delete()
             code = PasswordResetCode.generate_code()
             PasswordResetCode.objects.create(user=user, code=code)
-            send_mail(
+            # A failure is logged but not reported to the client, so the response
+            # never reveals which emails are registered.
+            send_code_email(
                 subject='Your SkillTrade password reset code',
                 message=f'Your password reset code is: {code}\nIt expires in 10 minutes.\n'
                         f'If you did not request this, ignore this email.',
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
+                recipient=user.email,
             )
-        # Luôn trả cùng một câu trả lời để không lộ email nào đã đăng ký
+        # Always return the same response so registered emails are not revealed
         return Response({'detail': 'If that email is registered, a code has been sent.'})
 
 
@@ -236,7 +263,8 @@ class VerifyResetCodeView(APIView):
         )
         if error:
             return error
-        return Response({'detail': 'Code verified.'})  # chưa xóa mã, bước đổi mật khẩu còn cần
+        # The code is kept on purpose: the reset-password step still needs it
+        return Response({'detail': 'Code verified.'})
 
 
 class ResetPasswordView(APIView):
@@ -264,10 +292,10 @@ class ResetPasswordView(APIView):
         return Response({'detail': 'Password updated. You can log in now.'})
 
 
-# ---- Hồ sơ ----
+# ---- Profiles ----
 
 class MeView(generics.RetrieveUpdateAPIView):
-    """GET: hồ sơ của mình (vẫn có id, username, email, is_staff). PATCH: sửa bio + 3 link."""
+    """GET: own profile (includes id, username, email, is_staff). PATCH: edit bio + 3 links."""
     serializer_class = OwnProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ['get', 'patch', 'head', 'options']
@@ -278,7 +306,7 @@ class MeView(generics.RetrieveUpdateAPIView):
 
 
 class UserProfileView(generics.RetrieveAPIView):
-    """GET /users/<username>/: hồ sơ công khai, không có email."""
+    """GET /users/<username>/: public profile, no email."""
     serializer_class = PublicProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -289,7 +317,7 @@ class UserProfileView(generics.RetrieveAPIView):
 
 
 class UserSearchView(APIView):
-    """GET /users/?q=abc: gợi ý user có username chứa 'abc' (không phân biệt hoa thường)."""
+    """GET /users/?q=abc: suggest users whose username contains 'abc' (case-insensitive)."""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -300,7 +328,7 @@ class UserSearchView(APIView):
             User.objects.filter(is_active=True, username__icontains=q)
             .exclude(pk=request.user.pk)[:30]
         )
-        # Tên bắt đầu bằng chữ đã gõ lên trước, sau đó theo bảng chữ cái
+        # Usernames starting with the typed text come first, then alphabetical
         ranked = sorted(
             users,
             key=lambda u: (not u.username.lower().startswith(q.lower()), u.username.lower()),
